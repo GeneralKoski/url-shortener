@@ -2,10 +2,12 @@ package dev.koski.urlshortener;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -48,6 +50,13 @@ class ShortenerFlowTests {
         clickRepository.deleteAll();
     }
 
+    private void awaitClicks(long expected) {
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+            assertThat(clickRepository.count()).isEqualTo(expected);
+            assertThat(linkRepository.findAll().stream().mapToLong(Link::clickCount).sum()).isEqualTo(expected);
+        });
+    }
+
     @Test
     void duplicateCustomSlugIsConflict() {
         links.create("https://example.com", "mio-link", null, null, "martin");
@@ -81,8 +90,8 @@ class ShortenerFlowTests {
         mvc.perform(get("/ciao")).andExpect(status().isFound())
                 .andExpect(header().string("Location", "https://example.com/pagina"));
 
+        awaitClicks(1);
         assertThat(links.owned("ciao", "martin").clickCount()).isEqualTo(1);
-        assertThat(clickRepository.count()).isEqualTo(1);
     }
 
     @Test
@@ -91,6 +100,7 @@ class ShortenerFlowTests {
         links.visit("stat", "https://news.ycombinator.com/item?id=1", "Mozilla/5.0 (iPhone) Mobile", "IT");
         links.visit("stat", "https://news.ycombinator.com/", "Mozilla/5.0 (iPhone) Mobile", "IT");
         links.visit("stat", null, "Mozilla/5.0 (Macintosh)", "US");
+        awaitClicks(3);
 
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
         LinkStats result = stats.forLink(links.owned("stat", "martin"), today.minusDays(1), today);
@@ -111,6 +121,7 @@ class ShortenerFlowTests {
         links.visit("aaa", null, null, null);
         links.visit("aaa", null, null, null);
         links.visit("bbb", null, null, null);
+        awaitClicks(3);
 
         List<TagStats> result = stats.byTag("martin");
 

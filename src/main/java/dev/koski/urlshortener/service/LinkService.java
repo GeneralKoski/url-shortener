@@ -1,8 +1,5 @@
 package dev.koski.urlshortener.service;
 
-import static org.springframework.data.mongodb.core.query.Criteria.where;
-import static org.springframework.data.mongodb.core.query.Query.query;
-
 import java.net.URI;
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -12,13 +9,10 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-import dev.koski.urlshortener.model.Click;
 import dev.koski.urlshortener.model.Link;
 import dev.koski.urlshortener.repository.ClickRepository;
 import dev.koski.urlshortener.repository.LinkRepository;
@@ -32,13 +26,13 @@ public class LinkService {
 
     private final LinkRepository links;
     private final ClickRepository clicks;
-    private final MongoTemplate mongo;
+    private final ClickRecorder recorder;
     private final SecureRandom random = new SecureRandom();
 
-    public LinkService(LinkRepository links, ClickRepository clicks, MongoTemplate mongo) {
+    public LinkService(LinkRepository links, ClickRepository clicks, ClickRecorder recorder) {
         this.links = links;
         this.clicks = clicks;
-        this.mongo = mongo;
+        this.recorder = recorder;
     }
 
     public Link create(String url, String customSlug, List<String> tags, Instant expiresAt, String owner) {
@@ -63,9 +57,8 @@ public class LinkService {
         if (link.expiresAt() != null && link.expiresAt().isBefore(Instant.now())) {
             throw new ResponseStatusException(HttpStatus.GONE, "Link scaduto");
         }
-        mongo.updateFirst(query(where("slug").is(slug)), new Update().inc("clickCount", 1), Link.class);
-        clicks.insert(new Click(null, slug, Instant.now(), country == null ? "unknown" : country,
-                device(userAgent), referrerHost(referrer)));
+        recorder.record(slug, Instant.now(), country == null ? "unknown" : country,
+                device(userAgent), referrerHost(referrer));
         return link;
     }
 

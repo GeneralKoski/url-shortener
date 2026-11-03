@@ -19,9 +19,11 @@ Test:
 
 ## Configurazione
 
-- `JWT_SECRET`: chiave per firmare i token, almeno 32 caratteri. Se manca l'app ne genera una casuale
-  a ogni avvio (i token non sopravvivono al riavvio) e lo scrive nel log.
+- Chiave JWT: crea un file `local.properties` nella cartella del progetto (è ignorato da git) con
+  `app.jwt.secret=<almeno 32 caratteri>`, per esempio generata con `openssl rand -hex 32`.
+  Se manca l'app usa una chiave casuale a ogni avvio (i token non sopravvivono al riavvio) e lo scrive nel log.
 - `app.jwt.ttl`: durata del token, default `1h`.
+- Le risposte di errore non contengono stack trace né il valore dei campi rifiutati.
 
 ## API
 

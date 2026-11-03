@@ -57,7 +57,7 @@ public class LinkService {
         if (link.expiresAt() != null && link.expiresAt().isBefore(Instant.now())) {
             throw new ResponseStatusException(HttpStatus.GONE, "Link scaduto");
         }
-        recorder.record(slug, Instant.now(), country == null ? "unknown" : country,
+        recorder.record(link.id(), slug, Instant.now(), country == null ? "unknown" : country,
                 device(userAgent), referrerHost(referrer));
         return link;
     }

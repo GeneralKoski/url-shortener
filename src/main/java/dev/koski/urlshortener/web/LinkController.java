@@ -1,5 +1,6 @@
 package dev.koski.urlshortener.web;
 
+import java.security.Principal;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -11,7 +12,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -38,42 +38,42 @@ public class LinkController {
 
     @PostMapping("/links")
     @ResponseStatus(HttpStatus.CREATED)
-    public LinkResponse create(@RequestHeader("X-Owner") String owner, @Valid @RequestBody CreateLinkRequest request) {
+    public LinkResponse create(Principal principal, @Valid @RequestBody CreateLinkRequest request) {
         return LinkResponse.from(
-                links.create(request.url(), request.slug(), request.tags(), request.expiresAt(), owner));
+                links.create(request.url(), request.slug(), request.tags(), request.expiresAt(), principal.getName()));
     }
 
     @GetMapping("/links")
     public PagedModel<LinkResponse> list(
-            @RequestHeader("X-Owner") String owner,
+            Principal principal,
             @RequestParam(required = false) String tag,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return new PagedModel<>(
-                links.list(owner, tag, Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE))
+                links.list(principal.getName(), tag, Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE))
                         .map(LinkResponse::from));
     }
 
     @GetMapping("/links/{slug}/stats")
     public LinkStats linkStats(
-            @RequestHeader("X-Owner") String owner,
+            Principal principal,
             @PathVariable String slug,
             @RequestParam(required = false) LocalDate from,
             @RequestParam(required = false) LocalDate to) {
-        Link link = links.owned(slug, owner);
+        Link link = links.owned(slug, principal.getName());
         LocalDate end = to != null ? to : LocalDate.now(ZoneOffset.UTC);
         LocalDate start = from != null ? from : end.minusDays(29);
         return stats.forLink(link, start, end);
     }
 
     @GetMapping("/stats/tags")
-    public List<TagStats> tagStats(@RequestHeader("X-Owner") String owner) {
-        return stats.byTag(owner);
+    public List<TagStats> tagStats(Principal principal) {
+        return stats.byTag(principal.getName());
     }
 
     @DeleteMapping("/links/{slug}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@RequestHeader("X-Owner") String owner, @PathVariable String slug) {
-        links.delete(slug, owner);
+    public void delete(Principal principal, @PathVariable String slug) {
+        links.delete(slug, principal.getName());
     }
 }

@@ -26,6 +26,8 @@ import jakarta.validation.Valid;
 @RequestMapping("/api")
 public class LinkController {
 
+    private static final int MAX_PAGE_SIZE = 100;
+
     private final LinkService links;
     private final StatsService stats;
 
@@ -47,7 +49,9 @@ public class LinkController {
             @RequestParam(required = false) String tag,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return new PagedModel<>(links.list(owner, tag, page, size).map(LinkResponse::from));
+        return new PagedModel<>(
+                links.list(owner, tag, Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE))
+                        .map(LinkResponse::from));
     }
 
     @GetMapping("/links/{slug}/stats")
